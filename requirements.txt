@@ -1,0 +1,6 @@
+jax
+jaxlib
+optax
+datasets
+flax
+matplotlib
