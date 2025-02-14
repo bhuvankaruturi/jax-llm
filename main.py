@@ -80,14 +80,25 @@ def calculate_loss(model, inputs, outputs):
     loss = optax.softmax_cross_entropy(logits, outputs).mean()
     return loss, logits
 
+def get_positional_embeddings(max_len, embedding_dim):
+    pe = jnp.zeros((max_len, embedding_dim))
+    position = jnp.arange(0, max_len, dtype=jnp.float32)[:, None]
+    div_term = jnp.exp(jnp.arange(0, embedding_dim, 2) * (-jnp.log(10000.0) / embedding_dim))
+    pe = pe.at[:, 0::2].set(jnp.sin(position * div_term))
+    pe = pe.at[:, 1::2].set(jnp.cos(position * div_term))
+    pe = nnx.Variable(pe[None, :, :])
+    return pe
+
 class Model(nnx.Module):
     def __init__(self, input_dim: int, embedding_dim: int, ff_dim: int, output_dim: int, rng=nnx.Rngs(42)):
-        self.embedding = nnx.Embed(num_embeddings=input_dim, features=embedding_dim, rngs=rng, dtype=jnp.int8)
+        self.embedding = nnx.Embed(num_embeddings=input_dim, features=embedding_dim, rngs=rng, dtype=jnp.float32)
+        self.positional_encodings = get_positional_embeddings(max_len=512, embedding_dim=embedding_dim)
         self.ff1 = nnx.Linear(in_features=embedding_dim, out_features=ff_dim, rngs=rng)
         self.ff2 = nnx.Linear(in_features=ff_dim, out_features=output_dim, rngs=rng)
     
     def __call__(self, x):
         x = self.embedding(x)
+        x = x + self.positional_encodings[:, :x.shape[1]]
         x = nnx.relu(self.ff1(x))
         x = nnx.log_softmax(self.ff2(x))
         return x
