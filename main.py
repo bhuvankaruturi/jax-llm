@@ -1,3 +1,4 @@
+import os
 from datasets import load_from_disk
 import jax
 import jax.numpy as jnp
@@ -10,7 +11,13 @@ VOCAB_SIZE = 256
 FF_DIM = 1024
 LEARNING_RATE = 0.005
 MOMENTUM = 0.9
-BATCH_SIZE = 100
+DEFAULT_BATCH_SIZE = 100
+
+def get_training_dataset_size(dataset_size: int) -> int:
+    return int(os.environ.get("TRAIN_DATASET_SIZE", dataset_size))
+
+def get_batch_size() -> int:
+    return int(os.environ.get("TRAIN_BATCH_SIZE", DEFAULT_BATCH_SIZE))
 
 def truncate_text(text, max_length=1000):
     text['text'] = text['text'][:max_length]
@@ -118,10 +125,12 @@ def main():
     )
 
     ds = load_jax_array("oscar-en-10k-truncated-ascii.npy")
+    ds = ds[:get_training_dataset_size(ds.shape[0])]
     inputs = to_inputs(ds)
     outputs = to_one_hot(ds)
     losses = []
     accuracies = []
+    BATCH_SIZE = get_batch_size()
     for i in range(0, inputs.shape[0], BATCH_SIZE):
         step = i // BATCH_SIZE
         train_step(model, optimizer, metrics, inputs[i:i+BATCH_SIZE], outputs[i:i+BATCH_SIZE])

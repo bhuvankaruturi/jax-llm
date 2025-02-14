@@ -1,3 +1,4 @@
 .jaxvenv/
 oscar-en-10k/*
 oscar-en-10k-truncated/*
+.vscode/*
